@@ -1,0 +1,19 @@
+def random_num():
+    import random
+
+    num1 = random.randint(1,6)
+    num2 = random.randint(1,6)
+
+    print("I have just rolled 2 dice, the numbers produced are: ", num1, "and", num2)
+
+    answer = str(input("Type 'add' if you wish to add the two numbers or 'sub' if you wish to subtract the two numbers: ")).lower()
+
+    if answer == "add":
+        print("The sum of the two numbers is:", num1 + num2)
+    elif answer == "sub":
+        print("The difference of the two numbers is:", num1 - num2)
+    else:
+        print("Please enter a valid response")
+
+if __name__ == "__main__":
+    random_num()
