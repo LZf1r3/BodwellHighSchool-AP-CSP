@@ -1,316 +1,456 @@
-import random
+#!/usr/bin/env python3
+"""
+Naughty/Nice List - Christmas Gift Assignment Program
+Advanced behavioral assessment system with machine learning-inspired scoring,
+persistence, export capabilities, and comprehensive analytics.
+"""
 
-# List with each question. Weighting system assuming answer is yes or maximum
-questions = [
-    {"question": "Do you help others without being asked?", "weight": 4, "type": "yesno"},
-    {"question": "Do you feel bad after hurting someone's feelings?", "weight": 5, "type": "yesno"},
-    {"question": "Do you tell the truth even when you might get in trouble?", "weight": 5, "type": "yesno"},
-    {"question": "Do you include kids who are left out?", "weight": 4, "type": "yesno"},
-    {"question": "When someone is sad, do you try to help them?", "weight": 5, "type": "yesno"},
-    {"question": "Do you say thank you when someone helps you?", "weight": 3, "type": "yesno"},
-    {"question": "Do you follow rules even when nobody is watching?", "weight": 5, "type": "yesno"},
-    {"question": "How often do you share your things?", "weight": 3, "type": "scale_1_5"},
-    {"question": "How much do you care if your actions hurt others?", "weight": 5, "type": "scale_1_5"},
-    {"question": "When you make a mistake, do you try to fix it?", "weight": 4, "type": "yesno"},
+import json
+import random
+import statistics
+from dataclasses import dataclass, asdict
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Optional
+from collections import Counter
+
+
+class Category(Enum):
+    """Behavioral categories with thresholds."""
+    GODLY = (80, "🌟")
+    NICE = (40, "😇")
+    NEUTRAL = (-20, "😐")
+    NAUGHTY = (-60, "😈")
+    DIABOLICAL = (float('-inf'), "👹")
     
-    {"question": "Do you lie to avoid trouble?", "weight": -5, "type": "yesno"},
-    {"question": "Do you enjoy teasing or humiliating others?", "weight": -5, "type": "yesno"},
-    {"question": "Do you break rules for fun?", "weight": -4, "type": "yesno"},
-    {"question": "Do you blame others for things you did?", "weight": -4, "type": "yesno"},
-    {"question": "Do you enjoy getting away with bad behavior?", "weight": -5, "type": "yesno"},
-    {"question": "Have you ever hurt someone on purpose?", "weight": -6, "type": "yesno"},
-    {"question": "How often do you get angry and act without thinking?", "weight": -4, "type": "scale_1_5"},
-    {"question": "How often do you ignore rules when they annoy you?", "weight": -3, "type": "scale_1_5"},
-    {"question": "How much do you care about being fair?", "weight": 4, "type": "scale_1_5"},
-    {"question": "If you find something that isn't yours, do you keep it?", "weight": -5, "type": "yesno"}
+    def __init__(self, threshold: float, emoji: str):
+        self.threshold = threshold
+        self.emoji = emoji
+
+
+# Gift categories and their assigned items with values
+GIFTS = {
+    Category.GODLY: [
+        {"name": "Golden Halo", "value": 10000},
+        {"name": "Unicorn", "value": 9500},
+        {"name": "Private Island", "value": 15000},
+        {"name": "Lifetime Cookie Supply", "value": 8000}
+    ],
+    Category.NICE: [
+        {"name": "Bike", "value": 500},
+        {"name": "Video Game Console", "value": 600},
+        {"name": "Books Collection", "value": 200},
+        {"name": "Art Supplies Set", "value": 150},
+        {"name": "Soccer Ball + Equipment", "value": 100}
+    ],
+    Category.NEUTRAL: [
+        {"name": "Socks (3 pairs)", "value": 20},
+        {"name": "Pencils Set", "value": 10},
+        {"name": "Notebook", "value": 15},
+        {"name": "Sweater", "value": 50}
+    ],
+    Category.NAUGHTY: [
+        {"name": "Coal (Premium Grade)", "value": -10},
+        {"name": "Stick", "value": -5},
+        {"name": "Lump of Coal", "value": -10},
+        {"name": "Nothing", "value": 0}
+    ],
+    Category.DIABOLICAL: [
+        {"name": "Krampus Visit", "value": -1000},
+        {"name": "Eternal Timeout", "value": -500},
+        {"name": "Coal Mine Tour", "value": -300},
+        {"name": "Bad Dreams Package", "value": -800}
+    ]
+}
+
+
+class QuestionCategory(Enum):
+    """Question categories for weighted analysis."""
+    KINDNESS = "kindness"
+    RESPONSIBILITY = "responsibility"
+    HONESTY = "honesty"
+    RESPECT = "respect"
+    COURAGE = "courage"
+
+
+# Questions with point values and categories
+QUESTIONS = [
+    ("Did you help your parents with chores without being asked?", 10, QuestionCategory.RESPONSIBILITY),
+    ("Did you share your toys with siblings or friends?", 8, QuestionCategory.KINDNESS),
+    ("Did you say 'please' and 'thank you' regularly?", 5, QuestionCategory.RESPECT),
+    ("Did you do your homework on time?", 7, QuestionCategory.RESPONSIBILITY),
+    ("Did you lie to your parents?", -10, QuestionCategory.HONESTY),
+    ("Did you hit or push someone?", -15, QuestionCategory.RESPECT),
+    ("Did you break something on purpose?", -12, QuestionCategory.RESPECT),
+    ("Did you steal candy or toys?", -20, QuestionCategory.HONESTY),
+    ("Did you help someone who was hurt or sad?", 12, QuestionCategory.KINDNESS),
+    ("Did you clean your room without complaining?", 6, QuestionCategory.RESPONSIBILITY),
+    ("Did you throw a tantrum in public?", -8, QuestionCategory.RESPECT),
+    ("Did you say mean things to others?", -10, QuestionCategory.KINDNESS),
+    ("Did you volunteer or donate to charity?", 15, QuestionCategory.KINDNESS),
+    ("Did you take care of a pet responsibly?", 8, QuestionCategory.RESPONSIBILITY),
+    ("Did you cheat on a test or game?", -12, QuestionCategory.HONESTY),
+    ("Did you apologize when you did something wrong?", 10, QuestionCategory.HONESTY),
+    ("Did you ignore your parents when they called you?", -7, QuestionCategory.RESPECT),
+    ("Did you stand up for someone being bullied?", 15, QuestionCategory.COURAGE),
+    ("Did you waste food on purpose?", -8, QuestionCategory.RESPECT),
+    ("Did you read books for fun?", 5, QuestionCategory.RESPONSIBILITY),
+    ("Did you help with household tasks voluntarily?", 9, QuestionCategory.RESPONSIBILITY),
+    ("Did you comfort a crying friend?", 11, QuestionCategory.KINDNESS),
+    ("Did you destroy someone else's property?", -18, QuestionCategory.RESPECT),
+    ("Did you tell the truth even when it was hard?", 12, QuestionCategory.HONESTY),
+    ("Did you defend someone who couldn't defend themselves?", 14, QuestionCategory.COURAGE)
 ]
 
 
-class Children:
-    """Represents a child with questionnaire-based behavior assessment"""
+@dataclass
+class Assessment:
+    """Individual child assessment record."""
+    name: str
+    score: int
+    category: str
+    gift: Dict[str, any]
+    timestamp: str
+    category_scores: Dict[str, int]
+    answers: List[Dict[str, any]]
     
-    # Defining unchangeable values for each child
-    def __init__(self, _name, _gender, _age=None, _location=None):
-        self.name = _name
-        self.gender = _gender
-        self.age = _age
-        self.location = _location
-        self.category = None
-        self.behaviour_score = None
-        self.answers = []
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+
+
+class SantaEngine:
+    """Advanced Naughty/Nice Analytics Engine."""
     
-    def take_questionnaire(self, auto_answer=False):
-        """
-        Have the child take the questionnaire
-        auto_answer: if True, generates random answers for simulation
-        """
-        self.answers = []
+    def __init__(self, data_file: str = "santa_data.json"):
+        self.data_file = Path(data_file)
+        self.assessments: List[Assessment] = []
+        self.load_data()
+    
+    def ask_questions(self, num_questions: int = 10) -> tuple[int, Dict[str, int], List[Dict]]:
+        """Ask random questions and calculate total score with category breakdown."""
+        selected_questions = random.sample(QUESTIONS, min(num_questions, len(QUESTIONS)))
         total_score = 0
+        category_scores = {cat.value: 0 for cat in QuestionCategory}
+        answers = []
         
-        print(f"\n{'='*60}")
-        print(f"Questionnaire for {self.name}")
-        print(f"{'='*60}\n")
+        print("\n" + "="*70)
+        print("🎅 SANTA'S ADVANCED BEHAVIORAL ASSESSMENT 🎄")
+        print("="*70)
+        print("Answer YES (y) or NO (n) to each question.")
+        print("Type 'skip' to skip a question (0 points).\n")
         
-        for i, q in enumerate(questions, 1):
-            print(f"Question {i}/{len(questions)}:")
-            print(f"  {q['question']}")
-            
-            if auto_answer:
-                # Generate random answer for simulation
-                if q['type'] == 'yesno':
-                    answer = random.choice(['yes', 'no'])
-                    print(f"  Answer: {answer}")
-                else:  # scale_1_5
-                    answer = random.randint(1, 5)
-                    print(f"  Answer: {answer}/5")
-            else:
-                # Get user input
-                if q['type'] == 'yesno':
-                    answer = input("  Answer (yes/no): ").strip().lower()
-                    while answer not in ['yes', 'no', 'y', 'n']:
-                        answer = input("  Please answer yes or no: ").strip().lower()
-                    if answer == 'y':
-                        answer = 'yes'
-                    elif answer == 'n':
-                        answer = 'no'
-                else:  # scale_1_5
-                    answer = input("  Answer (1-5, where 5 is most): ").strip()
-                    while not answer.isdigit() or int(answer) not in range(1, 6):
-                        answer = input("  Please enter a number from 1 to 5: ").strip()
-                    answer = int(answer)
-            
-            # Calculate score for this question
-            question_score = self._calculate_question_score(q, answer)
-            total_score += question_score
-            
-            # Store the answer
-            self.answers.append({
-                "question": q['question'],
-                "answer": answer,
-                "score": question_score
-            })
-            
-            print()
+        for i, (question, points, q_category) in enumerate(selected_questions, 1):
+            while True:
+                answer = input(f"{i}. {question}\n   Your answer (y/n/skip): ").lower().strip()
+                if answer in ['y', 'yes']:
+                    total_score += points
+                    category_scores[q_category.value] += points
+                    answers.append({"question": question, "answer": "yes", "points": points, "category": q_category.value})
+                    break
+                elif answer in ['n', 'no']:
+                    answers.append({"question": question, "answer": "no", "points": 0, "category": q_category.value})
+                    break
+                elif answer == 'skip':
+                    answers.append({"question": question, "answer": "skip", "points": 0, "category": q_category.value})
+                    print("   ⏭️  Skipped")
+                    break
+                else:
+                    print("   Please answer 'y', 'n', or 'skip'")
         
-        self.behaviour_score = total_score
-        self.category = self._determine_category()
+        return total_score, category_scores, answers
+
+
+    def categorize_score(self, score: int) -> Category:
+        """Categorize a score using enum thresholds."""
+        for category in Category:
+            if score >= category.threshold:
+                return category
+        return Category.DIABOLICAL
+
+
+    def assign_gift(self, category: Category) -> Dict[str, any]:
+        """Assign a random gift based on category."""
+        return random.choice(GIFTS[category])
+
+
+    def analyze_results(self) -> None:
+        """Advanced analytics with comprehensive statistics."""
+        if not self.assessments:
+            print("\n❌ No data to analyze yet!")
+            return
         
-        return total_score
-    
-    def _calculate_question_score(self, question, answer):
-        """Calculate score for a single question"""
-        weight = question['weight']
+        total = len(self.assessments)
+        scores = [a.score for a in self.assessments]
         
-        if question['type'] == 'yesno':
-            # For positive weights: yes = full weight, no = 0
-            # For negative weights: yes = full weight (negative), no = 0
-            if answer in ['yes', 'y']:
-                return weight
-            else:
-                return 0
-        else:  # scale_1_5
-            # Scale the answer (1-5) to the weight
-            # For positive weights: higher answer = higher score
-            # For negative weights: higher answer = more negative score
-            return weight * (answer / 5.0)
-    
-    def _determine_category(self):
-        """Determine the child's category based on their score"""
-        if self.behaviour_score is None:
-            return "Not Assessed"
+        # Category distribution
+        category_counts = Counter(a.category for a in self.assessments)
         
-        # Calculate max possible score
-        max_score = sum(abs(q['weight']) for q in questions if q['weight'] > 0)
-        min_score = -sum(abs(q['weight']) for q in questions if q['weight'] < 0)
+        # Category scores aggregation
+        category_performance = {cat.value: [] for cat in QuestionCategory}
+        for assessment in self.assessments:
+            for cat, score in assessment.category_scores.items():
+                category_performance[cat].append(score)
         
-        # Normalize score to percentage
-        total_range = max_score + abs(min_score)
-        normalized = ((self.behaviour_score - min_score) / total_range) * 100
+        # Display analytics
+        print("\n" + "="*70)
+        print("📊 COMPREHENSIVE NAUGHTY/NICE ANALYTICS REPORT 📊")
+        print("="*70)
+        print(f"Total Children Assessed: {total}")
+        print(f"Assessment Period: {self.assessments[0].timestamp} to {self.assessments[-1].timestamp}")
+        print()
         
-        if normalized >= 80:
-            return "Very Nice ⭐"
-        elif normalized >= 60:
-            return "Nice ✓"
-        elif normalized >= 40:
-            return "Neutral ~"
-        elif normalized >= 20:
-            return "Naughty ⚠"
-        else:
-            return "Very Naughty ✗"
-    
-    def get_report(self):
-        """Get a detailed report of the child's assessment"""
-        if self.behaviour_score is None:
-            return f"{self.name} has not been assessed yet."
+        # Category Distribution
+        print("🎁 Category Distribution:")
+        print("-" * 70)
+        for category in Category:
+            cat_name = category.name.lower()
+            count = category_counts.get(cat_name, 0)
+            percentage = (count / total) * 100
+            bar = "█" * int(percentage / 2)
+            emoji = category.emoji
+            print(f"{emoji} {category.name:12} | {count:3} ({percentage:5.1f}%) {bar}")
         
-        report = []
-        report.append(f"{'='*60}")
-        report.append(f"Assessment Report for {self.name}")
-        report.append(f"{'='*60}")
-        report.append(f"Gender: {self.gender}")
-        if self.age:
-            report.append(f"Age: {self.age}")
-        if self.location:
-            report.append(f"Location: {self.location}")
-        report.append(f"Behavior Score: {self.behaviour_score:.2f}")
-        report.append(f"Category: {self.category}")
-        report.append("")
+        print("-" * 70)
         
-        # Analyze positive behaviors
-        positive_answers = [a for a in self.answers if a['score'] > 0]
-        negative_answers = [a for a in self.answers if a['score'] < 0]
+        # Score Statistics
+        print("\n📈 Score Statistics:")
+        print(f"   Average Score: {statistics.mean(scores):.2f}")
+        print(f"   Median Score:  {statistics.median(scores):.2f}")
+        print(f"   Std Deviation: {statistics.stdev(scores):.2f}" if len(scores) > 1 else "   Std Deviation: N/A")
+        print(f"   Highest Score: {max(scores)} 🏆")
+        print(f"   Lowest Score:  {min(scores)} 💀")
+        print(f"   Score Range:   {max(scores) - min(scores)}")
         
-        if positive_answers:
-            report.append("Positive Behaviors:")
-            for ans in sorted(positive_answers, key=lambda x: x['score'], reverse=True)[:5]:
-                report.append(f"  ✅ {ans['question']}")
-                report.append(f"     Answer: {ans['answer']} (Score: +{ans['score']:.2f})")
-            report.append("")
+        # Behavioral Category Performance
+        print("\n🎯 Behavioral Category Performance (Average Scores):")
+        print("-" * 70)
+        for cat, scores_list in category_performance.items():
+            if scores_list:
+                avg = statistics.mean(scores_list)
+                trend = "✅" if avg > 0 else "⚠️" if avg == 0 else "❌"
+                print(f"   {trend} {cat.capitalize():15}: {avg:6.2f}")
         
-        if negative_answers:
-            report.append("Areas of Concern:")
-            for ans in sorted(negative_answers, key=lambda x: x['score'])[:5]:
-                report.append(f"  ❌ {ans['question']}")
-                report.append(f"     Answer: {ans['answer']} (Score: {ans['score']:.2f})")
-            report.append("")
+        # Gift Value Analytics
+        total_gift_value = sum(a.gift['value'] for a in self.assessments)
+        avg_gift_value = total_gift_value / total
+        print("\n💰 Gift Value Analytics:")
+        print(f"   Total Gift Value:   ${total_gift_value:,.2f}")
+        print(f"   Average Gift Value: ${avg_gift_value:,.2f}")
+        print(f"   Most Valuable Gift: ${max(a.gift['value'] for a in self.assessments):,.2f}")
         
-        report.append(f"{'='*60}")
+        # Top/Bottom Performers
+        print("\n🌟 Top 3 Performers:")
+        top_performers = sorted(self.assessments, key=lambda x: x.score, reverse=True)[:3]
+        for i, a in enumerate(top_performers, 1):
+            print(f"   {i}. {a.name}: {a.score} pts ({a.category.upper()})")
         
-        return "\n".join(report)
-    
-    def to_dict(self):
-        """Convert to dictionary for JSON serialization"""
-        return {
-            "name": self.name,
-            "gender": self.gender,
-            "age": self.age,
-            "location": self.location,
-            "category": self.category,
-            "behaviour_score": self.behaviour_score,
-            "answers": self.answers
-        }
-    
-    @classmethod
-    def from_dict(cls, data):
-        """Create Children object from dictionary"""
-        child = cls(
-            data['name'],
-            data['gender'],
-            data.get('age'),
-            data.get('location')
+        if len(self.assessments) >= 3:
+            print("\n💀 Bottom 3 Performers:")
+            bottom_performers = sorted(self.assessments, key=lambda x: x.score)[:3]
+            for i, a in enumerate(bottom_performers, 1):
+                print(f"   {i}. {a.name}: {a.score} pts ({a.category.upper()})")
+        
+        print("="*70)
+
+
+    def display_result(self, assessment: Assessment) -> None:
+        """Display comprehensive individual assessment result."""
+        category = Category[assessment.category.upper()]
+        
+        print("\n" + "="*70)
+        print("🎁 ASSESSMENT RESULT 🎁")
+        print("="*70)
+        print(f"Child: {assessment.name}")
+        print(f"Timestamp: {assessment.timestamp}")
+        print(f"\nTotal Score: {assessment.score} points")
+        print(f"Category: {category.emoji} {assessment.category.upper()}")
+        print(f"\nGift Assigned: {assessment.gift['name']}")
+        print(f"Gift Value: ${assessment.gift['value']:,.2f}")
+        
+        # Category breakdown
+        print("\n📊 Behavioral Breakdown:")
+        for cat, score in assessment.category_scores.items():
+            indicator = "✅" if score > 0 else "⚠️" if score == 0 else "❌"
+            print(f"   {indicator} {cat.capitalize():15}: {score:+3d} points")
+        
+        print("="*70)
+
+
+    def assess_child(self, name: str, num_questions: int = 10) -> Assessment:
+        """Conduct full assessment for a child."""
+        score, category_scores, answers = self.ask_questions(num_questions)
+        category = self.categorize_score(score)
+        gift = self.assign_gift(category)
+        
+        assessment = Assessment(
+            name=name,
+            score=score,
+            category=category.name.lower(),
+            gift=gift,
+            timestamp=datetime.now().isoformat(),
+            category_scores=category_scores,
+            answers=answers
         )
-        child.category = data.get('category')
-        child.behaviour_score = data.get('behaviour_score')
-        child.answers = data.get('answers', [])
-        return child
-
-
-def simulate_questionnaire_for_child(name, gender, age=None, location=None):
-    """Simulate a questionnaire for a child with random answers"""
-    child = Children(name, gender, age, location)
-    child.take_questionnaire(auto_answer=True)
-    return child
-
-
-def interactive_questionnaire():
-    """Run an interactive questionnaire session"""
-    print("\n🎅 Welcome to Santa's Behavior Assessment Questionnaire! 🎄\n")
+        
+        self.assessments.append(assessment)
+        self.save_data()
+        return assessment
     
-    name = input("Child's name: ").strip()
-    gender = input("Gender: ").strip()
-    age_input = input("Age (optional, press Enter to skip): ").strip()
-    age = int(age_input) if age_input.isdigit() else None
-    location = input("Location (optional, press Enter to skip): ").strip() or None
+    def view_all_results(self) -> None:
+        """Display all assessment results in a table format."""
+        if not self.assessments:
+            print("\n❌ No children assessed yet!")
+            return
+        
+        print("\n" + "="*70)
+        print("📋 ALL ASSESSMENT RESULTS 📋")
+        print("="*70)
+        print(f"{'Name':<20} {'Score':>6} {'Category':<12} {'Gift':<30}")
+        print("-" * 70)
+        
+        for a in self.assessments:
+            category = Category[a.category.upper()]
+            print(f"{a.name:<20} {a.score:>6} {category.emoji} {a.category.upper():<9} {a.gift['name']:<30}")
+        
+        print("="*70)
     
-    child = Children(name, gender, age, location)
-    
-    print("\nGreat! Now let's answer some questions.")
-    print("Please answer honestly - Santa knows if you're telling the truth! 🎅")
-    
-    child.take_questionnaire(auto_answer=False)
-    
-    print("\n" + child.get_report())
-    
-    # Option to save
-    save = input("\nWould you like to save this assessment? (yes/no): ").strip().lower()
-    if save in ['yes', 'y']:
-        import json
-        filename = f"{name.replace(' ', '_')}_assessment.json"
+    def export_to_json(self, filename: Optional[str] = None) -> None:
+        """Export all assessments to JSON file."""
+        if not self.assessments:
+            print("\n❌ No data to export!")
+            return
+        
+        if filename is None:
+            filename = f"santa_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        export_data = {
+            "export_date": datetime.now().isoformat(),
+            "total_assessments": len(self.assessments),
+            "assessments": [a.to_dict() for a in self.assessments]
+        }
+        
         with open(filename, 'w') as f:
-            json.dump(child.to_dict(), f, indent=2)
-        print(f"✅ Assessment saved to {filename}")
+            json.dump(export_data, f, indent=2)
+        
+        print(f"\n✅ Data exported successfully to {filename}")
     
-    return child
-
-
-def batch_simulation(num_children=5):
-    """Simulate questionnaires for multiple children"""
-    sample_names = [
-        ("Emma Johnson", "Female", 8, "New York, USA"),
-        ("Oliver Smith", "Male", 10, "London, UK"),
-        ("Sophia Martinez", "Female", 7, "Madrid, Spain"),
-        ("Lucas Brown", "Male", 9, "Toronto, Canada"),
-        ("Mia Wilson", "Female", 11, "Sydney, Australia"),
-        ("Noah Davis", "Male", 6, "Paris, France"),
-        ("Isabella Garcia", "Female", 8, "Mexico City, Mexico"),
-        ("Ethan Anderson", "Male", 10, "Berlin, Germany"),
-        ("Ava Taylor", "Female", 7, "Tokyo, Japan"),
-        ("Mason Thomas", "Male", 9, "São Paulo, Brazil"),
-    ]
+    def save_data(self) -> None:
+        """Save assessments to persistent storage."""
+        data = [a.to_dict() for a in self.assessments]
+        with open(self.data_file, 'w') as f:
+            json.dump(data, f, indent=2)
     
-    children = []
-    for i in range(min(num_children, len(sample_names))):
-        name, gender, age, location = sample_names[i]
-        child = simulate_questionnaire_for_child(name, gender, age, location)
-        children.append(child)
+    def load_data(self) -> None:
+        """Load assessments from persistent storage."""
+        if self.data_file.exists():
+            try:
+                with open(self.data_file, 'r') as f:
+                    data = json.load(f)
+                    self.assessments = [Assessment(**item) for item in data]
+                print(f"✅ Loaded {len(self.assessments)} previous assessments")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not load previous data: {e}")
+                self.assessments = []
+        else:
+            self.assessments = []
     
-    return children
+    def search_child(self, name: str) -> None:
+        """Search for assessments by child name."""
+        results = [a for a in self.assessments if name.lower() in a.name.lower()]
+        
+        if not results:
+            print(f"\n❌ No assessments found for '{name}'")
+            return
+        
+        print(f"\n🔍 Found {len(results)} assessment(s) for '{name}':")
+        print("="*70)
+        for a in results:
+            category = Category[a.category.upper()]
+            print(f"\n📅 {a.timestamp}")
+            print(f"   Score: {a.score} | Category: {category.emoji} {a.category.upper()}")
+            print(f"   Gift: {a.gift['name']}")
+        print("="*70)
 
 
 def main():
-    """Main function"""
-    import argparse
+    """Main program loop with elevated features."""
+    engine = SantaEngine()
     
-    parser = argparse.ArgumentParser(
-        description="Santa's Questionnaire-Based Behavior Assessment"
-    )
-    parser.add_argument(
-        "--interactive",
-        action="store_true",
-        help="Run interactive questionnaire"
-    )
-    parser.add_argument(
-        "--simulate",
-        type=int,
-        metavar="N",
-        help="Simulate N children with random answers"
-    )
+    print("\n" + "="*70)
+    print("🎄✨ SANTA'S ADVANCED NAUGHTY/NICE ANALYTICS ENGINE ✨🎅")
+    print("="*70)
+    print("Powered by Machine Learning-Inspired Behavioral Analysis")
+    print("Help Santa determine who gets what gifts this Christmas!")
+    print("="*70)
     
-    args = parser.parse_args()
-    
-    if args.interactive:
-        interactive_questionnaire()
-    elif args.simulate:
-        print(f"\n🎅 Simulating questionnaires for {args.simulate} children...\n")
-        children = batch_simulation(args.simulate)
+    while True:
+        print("\n📋 Main Menu:")
+        print("  1. 🧒 Assess a child")
+        print("  2. 📊 View comprehensive analytics")
+        print("  3. 📋 View all results")
+        print("  4. 🔍 Search for a child")
+        print("  5. 💾 Export data to JSON")
+        print("  6. 🗑️  Clear all data")
+        print("  7. 🚪 Exit")
         
-        print("\n" + "="*60)
-        print("SIMULATION RESULTS")
-        print("="*60 + "\n")
+        choice = input("\nEnter your choice (1-7): ").strip()
         
-        for child in children:
-            print(f"{child.name}: Score = {child.behaviour_score:.2f}, Category = {child.category}")
+        if choice == "1":
+            name = input("\n👤 Enter child's name: ").strip()
+            if not name:
+                print("❌ Name cannot be empty!")
+                continue
+            
+            try:
+                num_questions = int(input(f"📝 Number of questions (1-{len(QUESTIONS)}): ").strip() or "10")
+                num_questions = max(1, min(num_questions, len(QUESTIONS)))
+            except ValueError:
+                num_questions = 10
+            
+            assessment = engine.assess_child(name, num_questions)
+            engine.display_result(assessment)
+            
+        elif choice == "2":
+            engine.analyze_results()
+            
+        elif choice == "3":
+            engine.view_all_results()
+            
+        elif choice == "4":
+            search_name = input("\n🔍 Enter child's name to search: ").strip()
+            if search_name:
+                engine.search_child(search_name)
+            else:
+                print("❌ Name cannot be empty!")
         
-        # Save to file
-        import json
-        with open("questionnaire_results.json", 'w') as f:
-            json.dump([c.to_dict() for c in children], f, indent=2)
-        print("\n✅ Results saved to questionnaire_results.json")
-    else:
-        print("Usage:")
-        print("  Interactive mode: python3 questionnaire_system.py --interactive")
-        print("  Simulation mode:  python3 questionnaire_system.py --simulate 5")
+        elif choice == "5":
+            custom_name = input("\n💾 Enter filename (or press Enter for auto-generated): ").strip()
+            engine.export_to_json(custom_name if custom_name else None)
+        
+        elif choice == "6":
+            confirm = input("\n⚠️  Are you sure you want to clear all data? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                engine.assessments = []
+                engine.save_data()
+                print("✅ All data cleared!")
+            else:
+                print("❌ Cancelled")
+                
+        elif choice == "7":
+            print("\n🎅 Thank you for helping Santa! Merry Christmas! 🎄✨\n")
+            break
+            
+        else:
+            print("❌ Invalid choice. Please enter 1-7.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n🎅 Goodbye! Merry Christmas! 🎄")
+    except Exception as e:
+        print(f"\n❌ An error occurred: {e}")
+        print("Please report this issue to Santa's IT department! 🎅")
