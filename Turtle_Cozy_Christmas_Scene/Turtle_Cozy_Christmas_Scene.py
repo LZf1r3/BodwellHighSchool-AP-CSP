@@ -1,13 +1,17 @@
+#Importing needed libraries
 import random as r
 import turtle
 from itertools import cycle
-import math
+
+#SEtting up the screen and turtle
 screen = turtle.Screen()
 screen.screensize(800,600)
 t = turtle.Turtle()
 
+#making turtle faster
 t.speed(0)
 
+#Function to draw filled rectangle - same as draw_rectangle but filled
 def draw_rectangle_fill(t,x,y,width,height,color):
     t.setheading(0)
     t.penup()
@@ -46,6 +50,7 @@ def background():
         t.seth(next(heading))
         t.forward(1)
 
+#Function to draw snowflakes in the sky
 def draw_snowflakes(t):
     t.pensize(0.5)
     for _ in range (85):
@@ -74,6 +79,8 @@ def draw_snowflakes(t):
             t.backward(size)
             t.right(angle)
     t.pensize(1)
+
+#Function to draw snowflakes on the ground
 def draw_snowflakes_ground(t):
     for _ in range (10000):
         t.penup()
@@ -153,6 +160,7 @@ def draw_snowflakes_ground(t):
             t.backward(size)
             t.right(angle)
 
+#Function to draw circle with options for fill color 
 def draw_circle(t, x, y, radius, fillcolor=None, outline=True):
     t.up()
     t.goto(x, y - radius)   # turtle draws circle from center offset
@@ -167,6 +175,7 @@ def draw_circle(t, x, y, radius, fillcolor=None, outline=True):
         t.end_fill()
     t.up()
 
+#Function to draw margin/frame around the screen
 def margin(x_screen, y_screen ,color):
     t.setheading(0)
     t.penup()
@@ -180,36 +189,8 @@ def margin(x_screen, y_screen ,color):
         t.left(90)
         t.forward(y_screen)
         t.left(90)
-def draw_fuzzy_cloud(t, x, y, scale=1, puffs=20):
-    """
-    Draws a fuzzy, fluffy cloud made of many random circles.
-    - t: turtle
-    - x, y: center
-    - scale: size of cloud
-    - puffs: number of fuzzy circles
-    """
-    t.color("white")
-    t.fillcolor("white")
-    t.penup()
-    t.goto(x, y)
-    t.pendown()
 
-    for _ in range(puffs):
-        # Random small offsets for fuzziness
-        offset_x = r.randint(-40, 40) * scale
-        offset_y = r.randint(-20, 20) * scale
-
-        t.penup()
-        t.goto(x + offset_x, y + offset_y)
-        t.pendown()
-
-        # Random radius for more organic shape
-        radius = r.randint(15, 35) * scale
-
-        t.begin_fill()
-        t.circle(radius)
-        t.end_fill()
-
+#def draw triangle
 def draw_triangle(x, y, width, height, color):
     t.goto(x, y)
     t.color(color)
@@ -226,6 +207,7 @@ def draw_triangle(x, y, width, height, color):
 
     t.end_fill()
 
+#Function to draw Christmas tree
 def draw_christmas_tree():
     t.penup()
     # Tree layers (big → small)
@@ -249,32 +231,56 @@ def draw_christmas_tree():
         t.left(90)
     t.end_fill()
 
-def draw_set_of_ornaments(t, x, y, spacing, count):
-    colors = ["red", "blue", "gold", "silver", "green"]
-    for i in range(count):
-        ornament_x = x + i * spacing
-        ornament_y = y + r.randint(-10, 10)  # slight vertical randomness
-        color = r.choice(colors)
-        draw_circle(t, ornament_x, ornament_y, 7, color)
-    
-def clouds(t,number):
+#Function to draw clouds
+def draw_clouds(t,number):
     for _ in range(number):
-        draw_fuzzy_cloud(t,r.randint(-400,400),r.randint(150,200))
+        x = r.randint(-400,400)
+        y = r.randint(150,200)
+        
+        t.color("white")
+        t.fillcolor("white")
+        t.penup()
+        t.goto(x, y)
+        t.pendown()
 
+        #Number of balls in each cloud - how big it is basically 
+        number_balls = 25
+
+        for _ in range(number_balls):
+            #shifts the balls within each cloud by certain amount
+            offset_x = r.randint(-40, 40) 
+            offset_y = r.randint(-20, 20) 
+
+            t.penup()
+            t.goto(x + offset_x, y + offset_y)
+            t.pendown()
+
+            # Random radius for better randomization
+            radius = r.randint(15, 35)
+
+            t.begin_fill()
+            t.circle(radius)
+            t.end_fill()
+
+#Function to draw a centered star on top of the tree
 def draw_centered_star(t,x,y,size):
     
+    #draw circle to fill empty space inside star
     draw_circle(t,x+25,y-8,size/5,"#FAE628")
     t.penup()
     t.goto(x,y)
     t.pendown()
     t.color("#FFEC00")
     t.begin_fill()
+
+    # for loop to draw star
     for _ in range(5):
         t.forward(size)
         t.right(144) # Angle for a 5-pointed star
     t.end_fill()
     t.color("black")
 
+#Function to draw a snowman
 def draw_snowman(t,x,y):
     # Bottom circle
     draw_circle(t, x, y, 20, "white")
@@ -320,6 +326,7 @@ def draw_snowman(t,x,y):
     t.setheading(20)
     t.forward(20)
 
+#Function to draw rectangle
 def draw_rectangle(t, x, y, w, h, color):
     t.penup()
     t.goto(x, y)
@@ -335,32 +342,46 @@ def draw_rectangle(t, x, y, w, h, color):
     t.end_fill()
     t.up()
 
-def draw_window(t, x, y, w, h):
-    draw_rectangle(t, x, y, w, h, "#C29606")  # Window frame
-    t.color("black")
-    t.width(2)
-    # Vertical line
-    t.penup()
-    t.goto(x + w / 2, y)
-    t.pendown()
-    t.goto(x + w / 2, y + h)
-    # Horizontal line
-    t.penup()
-    t.goto(x, y + h / 2)
-    t.pendown()
-    t.goto(x + w, y + h / 2)
-    t.width(1)
+#Function to draw window with frame
+def draw_window(t, win_x, win_y, win_width, win_height):
+    draw_rectangle(t, win_x, win_y, win_width, win_height, "#C29606")  # Window frame
+    #draw window frame (cross)
+    t.color("#c9a36b")
+    t.width(3)
+    # Outer frame
+    t.up()
+    t.goto(win_x, win_y)
+    t.setheading(0)
+    t.down()
+    for _ in range(2):
+        t.forward(win_width)
+        t.left(90)
+        t.forward(win_height)
+        t.left(90)
+    t.up()
+    # Vertical bar
+    t.goto(win_x + win_width / 2, win_y)
+    t.setheading(90)
+    t.down()
+    t.forward(win_height)
+    t.up()
+    # Horizontal bar
+    t.goto(win_x, win_y + win_height / 2)
+    t.setheading(0)
+    t.down()
+    t.forward(win_width)
+    t.up()
 
+#Function to draw 4 gifts under the three
 def draw_gifts():
-    """Draw Christmas presents"""
-    gift_data = [
+    gifts_list = [
         (-370, -148, 30, 25, 'red', 'gold'),
         (-340, -155, 25, 30, '#00CED1', 'white'),
         (-310, -150, 28, 22, 'green', 'red'),
         (-280, -145, 35, 30, 'purple', 'gold')
     ]
     
-    for x, y, width, height, box_color, ribbon_color in gift_data:
+    for x, y, width, height, box_color, ribbon_color in gifts_list:
         # Box
         t.penup()
         t.goto(x, y)
@@ -397,7 +418,11 @@ def draw_gifts():
     t.color("black")
     t.goto(0,0)
 
+#Function to draw the cabin
 def draw_cabin(t,x,y,width,height):
+    
+    # Setting up cabin dimensions
+    """OBS all the dimensions are relative to width and height parameters that I don't even know how I got but they all work out somehow"""
     roof_height = height * 0.5
     door_width = width * 0.2
     door_height = height * 0.4
@@ -411,11 +436,11 @@ def draw_cabin(t,x,y,width,height):
     win_height = height * 0.25
     win_x = x + width * 0.1
     win_y = y + height * 0.5
+
     # Cabin base
     draw_rectangle(t, x, y, width, height, "#6b3f27")
 
     # Door
-    
     draw_rectangle(t, door_x, door_y, door_width, door_height, "#3e2723")
 
     #chimney
@@ -446,39 +471,14 @@ def draw_cabin(t,x,y,width,height):
     
     draw_window(t, win_x, win_y, win_width, win_height)
 
-    #draw window frame (cross)
-    t.color("#c9a36b")
-    t.width(3)
-    # Outer frame
-    t.up()
-    t.goto(win_x, win_y)
-    t.setheading(0)
-    t.down()
-    for _ in range(2):
-        t.forward(win_width)
-        t.left(90)
-        t.forward(win_height)
-        t.left(90)
-    t.up()
-    # Vertical bar
-    t.goto(win_x + win_width / 2, win_y)
-    t.setheading(90)
-    t.down()
-    t.forward(win_height)
-    t.up()
-    # Horizontal bar
-    t.goto(win_x, win_y + win_height / 2)
-    t.setheading(0)
-    t.down()
-    t.forward(win_width)
-    t.up()
+    
 
     
 if __name__ == "__main__":
     screen.tracer(0)
     #Sky design
     background()
-    clouds(t,6)
+    draw_clouds(t,7)
 
     #Ground
     draw_rectangle_fill(t,-400,-300,800,150,"darkgreen")
@@ -498,7 +498,7 @@ if __name__ == "__main__":
     #Gifts unde  r the tree
     draw_gifts()
     
-    draw_snowman(t,-180,-150)
+    draw_snowman(t,-150,-150)
     #House parameters
     x_house = 150
     y_house = -200
