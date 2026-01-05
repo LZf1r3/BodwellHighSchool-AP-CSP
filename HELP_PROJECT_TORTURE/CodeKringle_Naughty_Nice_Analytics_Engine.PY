@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """AP Computer Science Christmas Project - Naughty/Nice Analytics System"""
 
 import random
@@ -223,7 +222,7 @@ def calculate_behaviour_score(child, simulate=False):
     score = 0
     child.responses = []
     
-    # Ask questions and sum points
+    # Ask questions and sum points to set score
     for question, freq_points, sometimes_points, never_points in behaviour_questions:
         if simulate:
             if freq_points > 0:
@@ -389,7 +388,7 @@ def generate_summary_statistics(children_list):
         gift = child.gift
         gift_counts[gift] = gift_counts.get(gift, 0) + 1
     
-    most_common_gift = max(gift_counts.items(), key=lambda x: x[1])[0] if gift_counts else "None"
+    most_common_gift = max(gift_counts, key=gift_counts.get, default="None")
     
     #Checking leftover in inventory
     leftover_inventory = []
@@ -510,9 +509,8 @@ def adjust_category_percentages(children_list):
         child.gift = ""
         assign_gift(child)
 
-
+# Function to print detailed report for each child
 def print_per_child_report(child):
-    """Print detailed report for a child."""
     print("\n" + "="*70)
     print(f"🎁 PER-CHILD REPORT: {child.name.upper()} 🎁")
     print("="*70)
@@ -524,6 +522,7 @@ def print_per_child_report(child):
     art = GIFT_ART.get(child.gift, "")
     print(art)
 
+    # Printing question responses per child
     print("\nQuestion Responses:\n")
     for question, answer, points in child.responses:
         print(f"  - {question[:50]}...")
@@ -531,15 +530,15 @@ def print_per_child_report(child):
     
     print("="*70)
 
-
+# Function to print all children grouped by category - naughty, nice, etc
 def print_category_lists(children_list):
-    """Print all children grouped by category."""
     categories = ["angelic", "nice", "naughty", "evil"]
     
     print("\n" + "="*70)
     print("📋 CHILDREN BY CATEGORY 📋")
     print("="*70)
     
+    # Grouping and printing children by category
     for category in categories:
         category_children = [c for c in children_list if c.category == category]
         if category_children:
@@ -549,6 +548,7 @@ def print_category_lists(children_list):
                 print(f"  {child.name:<20} Score: {child.score:>4} | Gift: {child.gift}")
     print("="*70)
 
+# Function to print heading with project title - mostly for aesthetics
 def heading():
     print("\n" + "="*70)
     print("🎄 SANTA'S NAUGHTY/NICE ANALYTICS SYSTEM 🎅")
@@ -556,14 +556,15 @@ def heading():
     print("AP Computer Science Christmas Project")
     print("="*70)
 
+# Main loop for execution of the program
 def main():
-    """Main program loop."""
     global children
     
     set_inventory()
     
     heading()
     
+    #Loop till user exits
     while True:
         print("\nMenu:\n")
         print("  1. Add child manually")
@@ -571,7 +572,7 @@ def main():
         print("  3. View per-child reports")
         print("  4. View category lists")
         print("  5. Generate summary statistics")
-        print("  6. Apply global percentage constraints")
+        print("  6. Use data percentage approximation")
         print("  7. Clear all data")
         print("  8. Exit")
         
